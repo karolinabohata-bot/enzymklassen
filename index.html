@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enzymklassen Lern-App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .drag-item {
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            min-height: 50px;
+            transition: background-color 0.3s;
+        }
+        .drop-zone.over {
+            background-color: #f3f4f6;
+            border: 2px dashed #9ca3af;
+        }
+        .correct {
+            background-color: #d1fae5 !important;
+            border-color: #10b981 !important;
+            color: #065f46;
+        }
+        .wrong {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8 font-sans">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-800">Interaktive Enzymklassen-Tabelle</h1>
+            <p class="text-gray-600 mt-2">Ziehe die Begriffe in die richtigen Felder der Tabelle.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Sidebar: Drag Items -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200">
+                    <h2 class="font-bold mb-3 text-blue-700 border-b pb-2">Enzymklassen</h2>
+                    <div id="enzymklassen-pool" class="flex flex-wrap gap-2"></div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200">
+                    <h2 class="font-bold mb-3 text-yellow-700 border-b pb-2">Reaktionstypen</h2>
+                    <div id="reaktionstyp-pool" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-200">
+                    <h2 class="font-bold mb-3 text-purple-700 border-b pb-2">Beispiele</h2>
+                    <div id="beispiel-pool" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <button onclick="resetGame()" class="w-full py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition">
+                    Spiel zurücksetzen
+                </button>
+            </div>
+
+            <!-- Main: The Table -->
+            <div class="lg:col-span-3 overflow-x-auto">
+                <table class="w-full bg-white rounded-xl shadow-lg border-collapse overflow-hidden">
+                    <thead>
+                        <tr class="bg-gray-200 text-gray-700 uppercase text-sm">
+                            <th class="p-4 border border-gray-300 w-1/4">Enzymklasse</th>
+                            <th class="p-4 border border-gray-300 w-1/4">Reaktionstyp</th>
+                            <th class="p-4 border border-gray-300 w-1/4">Schema</th>
+                            <th class="p-4 border border-gray-300 w-1/4">Beispiel</th>
+                        </tr>
+                    </thead>
+                    <tbody id="game-table-body">
+                        <!-- Zeilen werden hier generiert -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const data = [
+            {
+                id: 0,
+                klasse: "Oxidoreduktase",
+                typ: "Redoxreaktion",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="15" width="40" height="30" rx="5" fill="#f3d2c1" stroke="#a57c67"/><text x="30" y="35" text-anchor="middle" font-size="10">red</text><circle cx="75" cy="30" r="15" fill="#fef3c7" stroke="#f59e0b"/><text x="75" y="35" text-anchor="middle" font-size="10">ox</text><path d="M100 30 L130 30" stroke="#6b7280" stroke-width="2"/><circle cx="155" cy="30" r="15" fill="#fef3c7" stroke="#f59e0b"/><text x="155" y="35" text-anchor="middle" font-size="10">ox</text><rect x="175" y="15" width="40" height="30" rx="5" fill="#f3d2c1" stroke="#a57c67"/><text x="195" y="35" text-anchor="middle" font-size="10" transform="translate(-20,0)">red</text></svg>`,
+                beispiel: "Alkohol-dehydrogenase"
+            },
+            {
+                id: 1,
+                klasse: "Transferase",
+                typ: "Übertragung funktioneller Gruppen",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="15" width="40" height="30" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="30" cy="15" r="4" fill="#ea580c"/><circle cx="75" cy="30" r="15" fill="#fef3c7" stroke="#f59e0b"/><path d="M100 30 L130 30" stroke="#6b7280" stroke-width="2"/><rect x="140" y="15" width="40" height="30" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="185" cy="30" r="15" fill="#fef3c7" stroke="#f59e0b"/><circle cx="185" cy="15" r="4" fill="#ea580c"/></svg>`,
+                beispiel: "Hexokinase"
+            },
+            {
+                id: 2,
+                klasse: "Hydrolase",
+                typ: "Hydrolyse",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="25" cy="20" r="10" fill="#fef3c7" stroke="#f59e0b"/><text x="100" y="20" text-anchor="middle" font-size="8">H₂O</text><path d="M85 35 L115 35" stroke="#6b7280" stroke-width="2"/><rect x="140" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><line x1="155" y1="30" x2="155" y2="15" stroke="black"/><text x="155" y="12" text-anchor="middle" font-size="8">OH</text><circle cx="185" cy="35" r="10" fill="#fef3c7" stroke="#f59e0b"/><line x1="185" y1="25" x2="185" y2="15" stroke="black"/><text x="185" y="12" text-anchor="middle" font-size="8">H</text></svg>`,
+                beispiel: "Amylase, Protease"
+            },
+            {
+                id: 3,
+                klasse: "Lyase",
+                typ: "Spaltung einer Verbindung ohne Wassereinlagerung",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="25" cy="20" r="10" fill="#fef3c7" stroke="#f59e0b"/><path d="M85 35 L115 35" stroke="#6b7280" stroke-width="2"/><rect x="140" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="185" cy="35" r="10" fill="#fef3c7" stroke="#f59e0b"/></svg>`,
+                beispiel: "Fumarase"
+            },
+            {
+                id: 4,
+                klasse: "Isomerase",
+                typ: "Umlagerung von Atomen oder Gruppen innerhalb eines Moleküls",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="25" cy="20" r="10" fill="#fef3c7" stroke="#f59e0b"/><line x1="25" y1="30" x2="25" y2="25" stroke="#ea580c" stroke-width="3"/><path d="M85 35 L115 35" stroke="#6b7280" stroke-width="2"/><rect x="140" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="155" cy="20" r="10" fill="#fef3c7" stroke="#f59e0b"/><circle cx="155" cy="45" r="4" fill="#ea580c"/></svg>`,
+                beispiel: "Glucose-Isomerase"
+            },
+            {
+                id: 5,
+                klasse: "Ligase",
+                typ: "Verknüpfung von zwei Molekülen unter ATP-Verbrauch",
+                svg: `<svg viewBox="0 0 200 60" class="w-full h-12"><rect x="10" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="55" cy="40" r="10" fill="#fef3c7" stroke="#f59e0b"/><text x="100" y="20" text-anchor="middle" font-size="8">ATP</text><path d="M85 35 L115 35" stroke="#6b7280" stroke-width="2"/><rect x="150" y="30" width="30" height="20" rx="5" fill="#f3d2c1" stroke="#a57c67"/><circle cx="165" cy="20" r="10" fill="#fef3c7" stroke="#f59e0b"/></svg>`,
+                beispiel: "DNA-Ligase"
+            }
+        ];
+
+        let state = {
+            enzymklassen: data.map(d => d.klasse).sort(() => Math.random() - 0.5),
+            reaktionstypen: data.map(d => d.typ).sort(() => Math.random() - 0.5),
+            beispiele: data.map(d => d.beispiel).sort(() => Math.random() - 0.5)
+        };
+
+        function init() {
+            renderPools();
+            renderTable();
+        }
+
+        function renderPools() {
+            const kPool = document.getElementById('enzymklassen-pool');
+            const rPool = document.getElementById('reaktionstyp-pool');
+            const bPool = document.getElementById('beispiel-pool');
+
+            kPool.innerHTML = state.enzymklassen.map(val => createDragItem(val, 'klasse', 'bg-blue-100 border-blue-300 text-blue-800')).join('');
+            rPool.innerHTML = state.reaktionstypen.map(val => createDragItem(val, 'typ', 'bg-yellow-100 border-yellow-400 text-yellow-900')).join('');
+            bPool.innerHTML = state.beispiele.map(val => createDragItem(val, 'beispiel', 'bg-purple-100 border-purple-300 text-purple-800')).join('');
+        }
+
+        function createDragItem(label, type, classes) {
+            return `<div draggable="true" ondragstart="onDragStart(event)" data-type="${type}" data-value="${label}" class="drag-item px-3 py-1 rounded-full border text-sm font-medium ${classes} shadow-sm">${label}</div>`;
+        }
+
+        function renderTable() {
+            const body = document.getElementById('game-table-body');
+            body.innerHTML = data.map((row, index) => `
+                <tr class="border-b border-gray-100">
+                    <td class="p-3 border border-gray-200">
+                        <div class="drop-zone flex items-center justify-center p-2 rounded" data-row="${index}" data-type="klasse" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+                            <span class="text-gray-300 text-xs italic">Hierher ziehen</span>
+                        </div>
+                    </td>
+                    <td class="p-3 border border-gray-200">
+                        <div class="drop-zone flex items-center justify-center p-2 rounded" data-row="${index}" data-type="typ" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+                            <span class="text-gray-300 text-xs italic">Hierher ziehen</span>
+                        </div>
+                    </td>
+                    <td class="p-3 border border-gray-200 bg-gray-50 flex justify-center">
+                        ${row.svg}
+                    </td>
+                    <td class="p-3 border border-gray-200">
+                        <div class="drop-zone flex items-center justify-center p-2 rounded" data-row="${index}" data-type="beispiel" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+                            <span class="text-gray-300 text-xs italic">Hierher ziehen</span>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function onDragStart(e) {
+            e.dataTransfer.setData('type', e.target.dataset.type);
+            e.dataTransfer.setData('value', e.target.dataset.value);
+            e.target.classList.add('opacity-50');
+        }
+
+        function onDragOver(e) {
+            e.preventDefault();
+            if (e.currentTarget.classList.contains('correct')) return;
+            e.currentTarget.classList.add('over');
+        }
+
+        function onDragLeave(e) {
+            e.currentTarget.classList.remove('over');
+        }
+
+        function onDrop(e) {
+            e.preventDefault();
+            const zone = e.currentTarget;
+            zone.classList.remove('over');
+            
+            if (zone.classList.contains('correct')) return;
+
+            const droppedType = e.dataTransfer.getData('type');
+            const droppedValue = e.dataTransfer.getData('value');
+            const zoneType = zone.dataset.type;
+            const rowIndex = parseInt(zone.dataset.row);
+
+            if (droppedType !== zoneType) return;
+
+            let isCorrect = false;
+            const targetRow = data[rowIndex];
+            
+            if (zoneType === 'klasse' && droppedValue === targetRow.klasse) isCorrect = true;
+            if (zoneType === 'typ' && droppedValue === targetRow.typ) isCorrect = true;
+            if (zoneType === 'beispiel' && droppedValue === targetRow.beispiel) isCorrect = true;
+
+            if (isCorrect) {
+                zone.innerHTML = `<span class="font-bold">✓ ${droppedValue}</span>`;
+                zone.classList.add('correct');
+                removeFromPool(droppedType, droppedValue);
+            } else {
+                zone.classList.add('wrong');
+                setTimeout(() => zone.classList.remove('wrong'), 500);
+            }
+        }
+
+        function removeFromPool(type, value) {
+            const poolMap = { 'klasse': 'enzymklassen', 'typ': 'reaktionstypen', 'beispiel': 'beispiele' };
+            const key = poolMap[type];
+            state[key] = state[key].filter(item => item !== value);
+            renderPools();
+            checkWin();
+        }
+
+        function checkWin() {
+            if (state.enzymklassen.length === 0 && state.reaktionstypen.length === 0 && state.beispiele.length === 0) {
+                setTimeout(() => {
+                    alert("Herzlichen Glückwunsch! Du hast alle Enzymklassen richtig zugeordnet.");
+                }, 300);
+            }
+        }
+
+        function resetGame() {
+            state = {
+                enzymklassen: data.map(d => d.klasse).sort(() => Math.random() - 0.5),
+                reaktionstypen: data.map(d => d.typ).sort(() => Math.random() - 0.5),
+                beispiele: data.map(d => d.beispiel).sort(() => Math.random() - 0.5)
+            };
+            init();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
